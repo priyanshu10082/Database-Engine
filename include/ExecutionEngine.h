@@ -80,3 +80,20 @@ public:
     void init() override;
     bool next(Row* row) override;
 };
+
+#include "BPlusTree.h"
+
+// IndexScanExecutor
+// Uses a B+ tree to find a row by its integer primary key.
+class IndexScanExecutor : public AbstractExecutor {
+private:
+    BPlusTree<int, Row>* bplusTree;
+    int searchKey;
+    bool executed; // Ensures we only return the row once
+
+public:
+    IndexScanExecutor(ExecutionContext* ctx, BPlusTree<int, Row>* tree, int key);
+    
+    void init() override;
+    bool next(Row* row) override;
+};

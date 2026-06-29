@@ -10,6 +10,7 @@ public:
     virtual ~AbstractExpression() = default;
     virtual bool evaluate(const Row& row, const Schema& schema) const = 0;
 };
+
 // ComparisonExpression: Compares a specific column against a constant value (equality only for now)
 class ComparisonExpression : public AbstractExpression {
 private:

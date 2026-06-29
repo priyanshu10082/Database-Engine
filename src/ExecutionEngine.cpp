@@ -108,3 +108,23 @@ bool FilterExecutor::next(Row* row) {
     }
     return false; // EOF
 }
+
+// --- IndexScanExecutor ---
+IndexScanExecutor::IndexScanExecutor(ExecutionContext* ctx, BPlusTree<int, Row>* tree, int key)
+    : AbstractExecutor(ctx), bplusTree(tree), searchKey(key), executed(false) {}
+
+void IndexScanExecutor::init() {
+    executed = false;
+}
+
+bool IndexScanExecutor::next(Row* row) {
+    if (executed) {
+        return false; // Only one match expected for primary key, and we already returned it
+    }
+    
+    executed = true;
+    if (row != nullptr) {
+        return bplusTree->search(searchKey, *row);
+    }
+    return false;
+}
