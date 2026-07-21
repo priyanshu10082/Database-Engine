@@ -24,31 +24,9 @@ int main() {
 
     // Create and populate the B+ Tree
     BPlusTree<int, Row> index(4);
-    
-    Row r1({DBValue(1), DBValue("Alice")});
-    Row r2({DBValue(2), DBValue("Bob")});
-    Row r3({DBValue(3), DBValue("Charlie")});
-    
-    index.insert(1, r1);
-    index.insert(2, r2);
-    index.insert(3, r3);
-    std::cout << "Populated B+ Tree with initial rows (Alice, Bob, Charlie).\n";
-    
-    // Demonstrate Index Scan
-    std::cout << "Running IndexScanExecutor for ID = 2...\n";
-    IndexScanExecutor idxScan(&context, &index, 2);
-    idxScan.init();
-    
-    Row resultRow;
-    if (idxScan.next(&resultRow)) {
-        std::cout << "-> Found Row: ID=" << resultRow.getValues()[0].intValue 
-                  << ", Name=" << resultRow.getValues()[1].stringValue << "\n";
-    } else {
-        std::cout << "-> Row not found.\n";
-    }
 
     // Start REPL
-    REPL repl(&context, schema);
+    REPL repl(&context, schema, &index);
     repl.start();
 
     return 0;

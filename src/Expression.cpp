@@ -1,4 +1,4 @@
-#include "Expression.h"
+#include "../include/Expression.h"
 
 ComparisonExpression::ComparisonExpression(uint32_t colIdx, const DBValue& val) 
     : columnIndex(colIdx), value(val) {}
