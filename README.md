@@ -109,12 +109,13 @@ Supports:
 Database File (.db)
 
 │
-├── Page 0   (4096 bytes)
-├── Page 1   (4096 bytes)
-├── Page 2   (4096 bytes)
+├── Page 0   (4096 bytes)  ← Header page: stores row count (metadata)
+├── Page 1   (4096 bytes)  ← Data page: first batch of rows
+├── Page 2   (4096 bytes)  ← Data page: next batch of rows
+|        
 └── Page N   (4096 bytes)
 
-Each page stores serialized rows according to the table schema.
+Page 0 is reserved for metadata. Row data begins at Page 1.
 ```
 
 ---
@@ -172,13 +173,13 @@ Each executor produces **one tuple at a time**, allowing physical operators to b
 Start
   │
   ▼
-Read Page 0
+Read Page 1
   │
   ▼
 Scan all rows
   │
   ▼
-Read Page 1
+Read Page 2
   │
   ▼
 Scan all rows
@@ -216,10 +217,10 @@ Return Result
 ## B+ Tree Structure
 
 ```text
-                    [10 | 20]
-                   /    |    \
-                  /     |     \
-         [1 5 8] [12 15] [22 30 35]
+                  [10 | 20]
+                 /    |    \
+                /     |     \
+           [1 5 8] [12 15] [22 30 35]
              │        │        │
              └────────┴────────┘
             Linked Leaf Nodes
@@ -272,7 +273,6 @@ Database-Engine/
 │   ├── Expression.cpp
 │   ├── REPL.cpp
 │   ├── Row.cpp
-│   ├── Schema.cpp
 │   └── StorageManager.cpp
 │
 ├── main.cpp
@@ -293,9 +293,14 @@ git clone https://github.com/priyanshu10082/Database-Engine.git
 
 cd Database-Engine
 
+## Build
+
+### Using g++ directly
+g++ main.cpp src/*.cpp -o db_engine
+
+### Using CMake
 mkdir build
 cd build
-
 cmake ..
 cmake --build .
 ```
@@ -313,14 +318,33 @@ cmake --build .
 ## Example Session
 
 ```text
-> INSERT 1 Alice
-Row inserted successfully.
+db> INSERT 10 Alice
+Inserted 1 row.
+db> INSERT 20 Bob
+Inserted 1 row.
+db> SELECT
+ID: 10, Name: Alice
+ID: 20, Name: Bob
+(2 rows)
+db> SELECT WHERE id = 10
+ID: 10, Name: Alice
+(1 rows)
+db> SELECT WHERE Alice
+ID: 10, Name: Alice
+(1 rows)
+db> EXIT
 
-> SELECT
-1 Alice
+--- Restart (without deleting database file) ---
 
-> SELECT WHERE id = 1
-1 Alice
+Rebuilt index: 2 rows loaded.
+db> SELECT
+ID: 10, Name: Alice
+ID: 20, Name: Bob
+(2 rows)
+db> SELECT WHERE id = 10
+ID: 10, Name: Alice
+(1 rows)
+db> EXIT
 ```
 
 ---
@@ -353,6 +377,11 @@ Row inserted successfully.
 ---
 
 ## Roadmap
+
+Recently implemented:
+* Header page for persistent row count across sessions
+* B+ Tree index rebuild from disk on startup
+* fstream error flag clearing for reliable cross-page I/O
 
 Planned improvements include:
 

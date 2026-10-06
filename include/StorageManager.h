@@ -21,4 +21,10 @@ public:
 
     // Write a page from memory back to disk
     bool writePage(int pageId, const Page& page);
+
+    // Write totalRows into page 0 (metadata/header page)
+    void writeMetadata(int totalRows);
+
+    // Read totalRows from page 0 (metadata/header page)
+    int readMetadata();
 };

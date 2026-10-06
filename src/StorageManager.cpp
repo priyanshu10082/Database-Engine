@@ -1,18 +1,16 @@
 #include "../include/StorageManager.h"
 #include <stdexcept>
 #include <iostream>
+#include <cstring>
 
 StorageManager::StorageManager(const std::string& dbFilename) : filename(dbFilename) {
-    // Try to open existing file for read/write
     fileStream.open(filename, std::ios::in | std::ios::out | std::ios::binary);
     
     if (!fileStream.is_open()) {
-        // If it doesn't exist, create it by opening in out mode first, then closing
         fileStream.clear();
         fileStream.open(filename, std::ios::out | std::ios::binary);
         fileStream.close();
         
-        // Reopen in read/write mode
         fileStream.open(filename, std::ios::in | std::ios::out | std::ios::binary);
         if (!fileStream.is_open()) {
             throw std::runtime_error("Failed to open or create database file.");
@@ -27,24 +25,34 @@ StorageManager::~StorageManager() {
 }
 
 bool StorageManager::readPage(int pageId, Page& page) {
-    // Seek to the correct byte offset on the disk
+    fileStream.clear();                                      
     fileStream.seekg(pageId * PAGE_SIZE, std::ios::beg);
-    
-    // Read the bytes into our Page object
     if (fileStream.read(page.data.data(), PAGE_SIZE)) {
         return true;
     }
-    return false; // Could be end of file if the page hasn't been written yet
+    return false;
 }
 
 bool StorageManager::writePage(int pageId, const Page& page) {
-    // Seek to the correct byte offset on the disk
+    fileStream.clear();                                     
     fileStream.seekp(pageId * PAGE_SIZE, std::ios::beg);
-    
-    // Write the bytes from our Page object to the file
     fileStream.write(page.data.data(), PAGE_SIZE);
-    
-    // Flush to ensure the OS actually saves it to the hard drive
-    fileStream.flush(); 
+    fileStream.flush();
     return fileStream.good();
+}
+
+void StorageManager::writeMetadata(int totalRows) {
+    Page metaPage;
+    std::memcpy(metaPage.data.data(), &totalRows, sizeof(int));
+    writePage(0, metaPage);
+}
+
+int StorageManager::readMetadata() {
+    Page metaPage;
+    if (!readPage(0, metaPage)) {
+        return 0;
+    }
+    int totalRows = 0;
+    std::memcpy(&totalRows, metaPage.data.data(), sizeof(int));
+    return totalRows;
 }

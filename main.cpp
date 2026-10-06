@@ -7,25 +7,42 @@
 #include "include/BPlusTree.h"
 #include "include/REPL.h"
 
+// Scans all rows from disk and repopulates the B+ tree
+void rebuildIndex(ExecutionContext& context, Schema& schema, 
+                  BPlusTree<int, Row>& index, int totalRows) {
+    if (totalRows == 0) return;
+
+    SeqScanExecutor scanner(&context, schema, 1, totalRows);  // page 1 — data starts here
+    scanner.init();
+    Row row;
+    while (scanner.next(&row)) {
+        int id = row.getValues()[0].intValue;
+        index.insert(id, row);
+    }
+    std::cout << "Rebuilt index: " << totalRows << " rows loaded." << std::endl;
+}
+
 int main() {
     std::cout << "Initializing Database Engine with B+ Tree Index..." << std::endl;
 
-    // 1. Define our Schema (id: INT, name: VARCHAR(32))
     std::vector<Column> columns = {
         {"id", DataType::INT, 4},
         {"name", DataType::VARCHAR, 32}
     };
     Schema schema(columns);
 
-    // Create a StorageManager
     StorageManager storage("test_db.bin");
     ExecutionContext context;
     context.storage = &storage;
 
-    // Create and populate the B+ Tree
     BPlusTree<int, Row> index(4);
 
-    // Start REPL
+    // Read how many rows exist from the header page
+    int savedRows = storage.readMetadata();
+
+    // Rebuild B+ tree from disk before starting REPL
+    rebuildIndex(context, schema, index, savedRows);
+
     REPL repl(&context, schema, &index);
     repl.start();
 

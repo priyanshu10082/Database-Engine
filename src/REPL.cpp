@@ -6,7 +6,9 @@
 #include <cctype>
 
 REPL::REPL(ExecutionContext* ctx, const Schema& sch, BPlusTree<int, Row>* idx) 
-    : context(ctx), schema(sch), totalRows(0), index(idx) {}
+    : context(ctx), schema(sch), index(idx) {
+    totalRows = context->storage->readMetadata();  // Reading from disk, not 0
+}
 
 void REPL::start() {
     std::string line;
@@ -49,13 +51,11 @@ void REPL::executeInsert(const std::string& args) {
     std::stringstream ss(args);
     int id;
 
-    // Step 1: parse id
     if (!(ss >> id)) {
         std::cout << "Syntax error. Usage: INSERT <id> <name>" << std::endl;
         return;
     }
 
-    // Step 2: rest of line is the name — fixes multi-word names
     std::string name;
     std::getline(ss, name);
     if (!name.empty() && name[0] == ' ') name = name.substr(1);
@@ -64,29 +64,26 @@ void REPL::executeInsert(const std::string& args) {
         return;
     }
 
-    // Step 3: calculate correct slot for this row
     uint32_t rowSize = schema.getRowSize();
     int rowsPerPage = static_cast<int>(PAGE_SIZE / rowSize);
-    int targetPageId = totalRows / rowsPerPage;
+    int targetPageId = (totalRows / rowsPerPage) + 1;  // +1 because page 0 is metadata
     int rowInPage    = totalRows % rowsPerPage;
 
-    // Step 4: load existing page if mid-page (preserve existing rows)
     Page page;
     if (rowInPage != 0) {
         context->storage->readPage(targetPageId, page);
     }
 
-    // Step 5: serialize into correct offset
     uint32_t offset = rowInPage * rowSize;
     Row newRow({DBValue(id), DBValue(name)});
     newRow.serialize(page.data.data() + offset, schema);
 
-    // Step 6: write back to disk
     context->storage->writePage(targetPageId, page);
 
     index->insert(id, newRow);
 
     totalRows++;
+    context->storage->writeMetadata(totalRows);        // persist totalRows
     std::cout << "Inserted 1 row." << std::endl;
 }
 
@@ -104,7 +101,6 @@ void REPL::executeSelect(const std::string& args) {
         if (token == "WHERE") {
             std::string field;
             if (ss >> field) {
-                // Save original casing BEFORE uppercasing
                 std::string fieldOriginal = field;
                 std::string fieldUpper = field;
                 for (auto& c : fieldUpper) c = std::toupper(static_cast<unsigned char>(c));
@@ -119,10 +115,9 @@ void REPL::executeSelect(const std::string& args) {
                         return;
                     }
                 } else {
-                    // Use ORIGINAL casing for the name filter
                     std::string rest;
                     std::getline(ss, rest);
-                    filterName = fieldOriginal;          // ← original case, not uppercase
+                    filterName = fieldOriginal;
                     if (!rest.empty() && rest[0] == ' ') rest = rest.substr(1);
                     if (!rest.empty()) filterName += " " + rest;
                     hasWhere = true;
@@ -134,7 +129,6 @@ void REPL::executeSelect(const std::string& args) {
         }
     }
 
-    // rest of executeSelect unchanged...
     if (isIndexScan) {
         IndexScanExecutor idxScan(context, index, filterID);
         idxScan.init();
@@ -147,7 +141,8 @@ void REPL::executeSelect(const std::string& args) {
         }
         std::cout << "(" << count << " rows)" << std::endl;
     } else if (hasWhere) {
-        auto scanForFilter = std::make_unique<SeqScanExecutor>(context, schema, 0, totalRows);
+        auto scanForFilter = std::make_unique<SeqScanExecutor>(context, schema, 1, totalRows);
+        // startPageId is 1 not 0 
         auto predicate = std::make_unique<ComparisonExpression>(1, DBValue(filterName));
         FilterExecutor filterExec(context, std::move(scanForFilter), std::move(predicate), schema);
         filterExec.init();
@@ -160,7 +155,8 @@ void REPL::executeSelect(const std::string& args) {
         }
         std::cout << "(" << count << " rows)" << std::endl;
     } else {
-        SeqScanExecutor seqScanExec(context, schema, 0, totalRows);
+        SeqScanExecutor seqScanExec(context, schema, 1, totalRows);
+        // startPageId is 1 not 0
         seqScanExec.init();
         Row row;
         int count = 0;

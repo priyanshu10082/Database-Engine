@@ -20,3 +20,6 @@ add_executable(db_engine ${SOURCES})
 
 # Include directories so compiler can find our .h files
 target_include_directories(db_engine PRIVATE include)
+
+# Enable warnings
+target_compile_options(db_engine PRIVATE -Wall -Wextra)
