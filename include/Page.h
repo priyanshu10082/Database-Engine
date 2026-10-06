@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <cstdint>
+#include <cstddef>
 
 // A Page is a fixed-size block of memory.
 // This is the smallest unit of data we read from or write to the hard drive.
