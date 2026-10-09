@@ -257,6 +257,9 @@ allowing new physical operators to be added without changing the execution frame
 ```text
 Database-Engine/
 │
+├── docs/
+│   └── Core_Components_Documentation.pdf
+|
 ├── include/
 │   ├── BPlusTree.h
 │   ├── ExecutionEngine.h
@@ -278,6 +281,23 @@ Database-Engine/
 ├── main.cpp
 └── CMakeLists.txt
 ```
+
+---
+
+
+## Documentation
+
+### Core Components
+
+```text
+Detailed documentation covering the implementation and design of:
+
+- Physical Storage
+- Structuring Data
+- Execution Engine
+```
+
+📄 [Read the Core Components Handwritten Documentation](docs/Core_Components_Documentation.pdf)
 
 ---
 
